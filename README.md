@@ -1,4 +1,4 @@
-# mender-deployments-post
+# mender-scripts
 Simple shell scripts which you can use to manage your mender server.
 
 ## Requirements
