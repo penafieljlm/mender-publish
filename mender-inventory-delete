@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Determine device id
+DEVICE="$1"
+if [ ! -n "${DEVICE}" ]
+then
+    (>&2 echo "Error: No device identifier provided.")
+    exit 1
+fi
+
+# Ensure curl is installed
+curl --help 2>&1 >/dev/null
+if [ $? -ne 0 ]
+then
+    (>&2 echo "Error: Curl is not installed.")
+    exit 1
+fi
+
+# Ensure python is installed
+python --help 2>&1 >/dev/null
+if [ $? -ne 0 ]
+then
+    (>&2 echo "Error: Python is not installed.")
+    exit 1
+fi
+
+# Ensure build environment is initialized
+bitbake --help 2>&1 >/dev/null
+if [ "$?" -ne 0 ]
+then
+    (>&2 echo "Error: Build environment not initialized.")
+    exit 1
+fi
+
+# Retrieve Mender parameters
+MENDER_DEVICE_TYPE=$(bitbake -e | grep -P '^MENDER_DEVICE_TYPE=".+"$' | awk '{split($0,a,"="); print a[2]}' | sed -e 's/^"//' -e 's/"$//')
+if [ ! -n "${MENDER_DEVICE_TYPE}" ]
+then
+    (>&2 echo "Error: Mender device type not found.")
+    exit 1
+fi
+MENDER_SERVER_URL=$(bitbake -e | grep -P '^MENDER_SERVER_URL=".+"$' | awk '{split($0,a,"="); print a[2]}' | sed -e 's/^"//' -e 's/"$//')
+if [ ! -n "${MENDER_SERVER_URL}" ]
+then
+    (>&2 echo "Error: Mender server URL not found.")
+    exit 1
+fi
+
+# Show script banner
+echo
+echo "mender-inventory-delete"
+echo "By John Lawrence M. Penafiel (penafieljlm)"
+echo
+echo "Identifier: ${DEVICE}"
+echo
+echo "Device: ${MENDER_DEVICE_TYPE}"
+echo "Server: ${MENDER_SERVER_URL}"
+echo
+
+# Perform Mender authentication
+echo "Please enter your Mender credentials."
+echo
+MENDER_AUTH_URL="${MENDER_SERVER_URL}/api/management/v1/useradm/auth/login"
+read -p "Username: " MENDER_AUTH_USERNAME
+read -sp "Password: " MENDER_AUTH_PASSWORD
+echo
+echo
+MENDER_AUTH_RESULT=$(curl -X POST -u "${MENDER_AUTH_USERNAME}:${MENDER_AUTH_PASSWORD}" "${MENDER_AUTH_URL}" 2>/dev/null)
+MENDER_AUTH_ERROR=$(echo "${MENDER_AUTH_RESULT}" | python -c 'import sys, json; print json.load(sys.stdin)["error"];' 2>/dev/null)
+if [ -n "${MENDER_AUTH_ERROR}" ]
+then
+    (>&2 echo "Error: $(tr '[:lower:]' '[:upper:]' <<< ${MENDER_AUTH_ERROR:0:1})${MENDER_AUTH_ERROR:1}.")
+    exit 1
+fi
+MENDER_AUTH_TOKEN="${MENDER_AUTH_RESULT}"
+
+# Delete the device
+echo "Deleting device: ${DEVICE}..."
+echo
+MENDER_DEVICES_URL="${MENDER_SERVER_URL}/api/management/v1/inventory/devices/${DEVICE}"
+MENDER_DEVICES_RESULT=$(curl -X DELETE \
+    -H "Authorization: Bearer ${MENDER_AUTH_TOKEN}" \
+    "${MENDER_DEVICES_URL}")
+MENDER_DEVICES_ERROR=$(echo "${MENDER_DEVICES_RESULT}" | python -c 'import sys, json; print json.load(sys.stdin)["error"];' 2>/dev/null)
+if [ -n "${MENDER_DEVICES_ERROR}" ]
+then
+    (>&2 echo "Error: $(tr '[:lower:]' '[:upper:]' <<< ${MENDER_DEVICES_ERROR:0:1})${MENDER_DEVICES_ERROR:1}.")
+    exit 1
+fi
+
+echo

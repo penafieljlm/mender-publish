@@ -1,7 +1,20 @@
 #!/bin/bash
 
-# usage:
-#  mender-publish [<image-name>]
+# Determine image name
+IMAGE="$1"
+if [ ! -n "${IMAGE}" ]
+then
+    (>&2 echo "Error: No image name provided.")
+    exit 1
+fi
+
+# Determine image description
+DESCRIPTION="$2"
+if [ ! -n "${DESCRIPTION}" ]
+then
+    (>&2 echo "Error: No image description provided.")
+    exit 1
+fi
 
 # Ensure curl is installed
 curl --help 2>&1 >/dev/null
@@ -24,22 +37,6 @@ bitbake --help 2>&1 >/dev/null
 if [ "$?" -ne 0 ]
 then
     (>&2 echo "Error: Build environment not initialized.")
-    exit 1
-fi
-
-# Determine image name
-IMAGE="$1"
-if [ ! -n "${IMAGE}" ]
-then
-    (>&2 echo "Error: No image name provided.")
-    exit 1
-fi
-
-# Determine image description
-DESCRIPTION="$2"
-if [ ! -n "${DESCRIPTION}" ]
-then
-    (>&2 echo "Error: No image description provided.")
     exit 1
 fi
 
@@ -80,8 +77,8 @@ MENDER_ARTIFACT_SIZE=$(stat --printf="%s" "${MENDER_ARTIFACT_REAL}")
 
 # Show script banner
 echo
-echo "Mender Publish Script"
-echo "Author: John Lawrence M. Penafiel (penafieljlm)"
+echo "mender-deployments-post"
+echo "By John Lawrence M. Penafiel (penafieljlm)"
 echo
 echo "Image: ${IMAGE}"
 echo "Description: ${DESCRIPTION}"
