@@ -1,18 +1,16 @@
 #!/bin/bash
 
-# Determine image name
+# Handle parameters
 IMAGE="$1"
-if [ ! -n "${IMAGE}" ]
-then
-    (>&2 echo "Error: No image name provided.")
-    exit 1
-fi
-
-# Determine image description
 DESCRIPTION="$2"
-if [ ! -n "${DESCRIPTION}" ]
+MENDER_AUTH_USERNAME="$3"
+MENDER_AUTH_PASSWORD="$4"
+if [ ! -n "${IMAGE}" ] || [ ! -n "${DESCRIPTION}" ]
 then
-    (>&2 echo "Error: No image description provided.")
+    (>&2 echo)
+    (>&2 echo "Usage:")
+    (>&2 echo "    mender-deployments-post <image> <description> [username] [password]")
+    (>&2 echo)
     exit 1
 fi
 
@@ -91,13 +89,22 @@ echo "${MENDER_ARTIFACT_REAL}"
 echo
 
 # Perform Mender authentication
-echo "Please enter your Mender credentials."
+if [ ! -n "$MENDER_AUTH_USERNAME" ] || [ ! -n "$MENDER_AUTH_PASSWORD" ]
+then
+    echo "Please enter your Mender credentials."
+    echo
+    if [ ! -n "$MENDER_AUTH_USERNAME" ]
+    then
+        read -p "Username: " MENDER_AUTH_USERNAME
+    fi
+    if [ ! -n "$MENDER_AUTH_PASSWORD" ]
+    then
+        read -sp "Password: " MENDER_AUTH_PASSWORD
+    fi
+    echo
+fi
 echo
 MENDER_AUTH_URL="${MENDER_SERVER_URL}/api/management/v1/useradm/auth/login"
-read -p "Username: " MENDER_AUTH_USERNAME
-read -sp "Password: " MENDER_AUTH_PASSWORD
-echo
-echo
 MENDER_AUTH_RESULT=$(curl -X POST -u "${MENDER_AUTH_USERNAME}:${MENDER_AUTH_PASSWORD}" "${MENDER_AUTH_URL}" 2>/dev/null)
 MENDER_AUTH_ERROR=$(echo "${MENDER_AUTH_RESULT}" | python -c 'import sys, json; print json.load(sys.stdin)["error"];' 2>/dev/null)
 if [ -n "${MENDER_AUTH_ERROR}" ]
